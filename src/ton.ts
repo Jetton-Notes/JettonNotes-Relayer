@@ -5,6 +5,7 @@ import { Address, toNano, OpenedContract } from "@ton/core"
 import { Blockchain, RemoteBlockchainStorage, wrapTonClient4ForRemote } from '@ton/sandbox'
 import { getHttpV4Endpoint, type Network } from '@orbs-network/ton-access'
 import { DepositWithdraw } from "./DepositWithdraw";
+import { TonClient4Adapter } from '@tonx/adapter';
 
 const network = process.env.NETWORK as Network;
 
@@ -14,12 +15,19 @@ export const TestnetAPI = "https://testnet.toncenter.com/api/v2/jsonRPC"
 const CURRENTAPI = TestnetAPI;
 
 export async function simulateTransaction(pi_a: any, pi_b: any, pi_c: any, publicSignals: any): Promise<boolean> {
+    if (!process.env.API_KEY) {
+        console.log("Missing API key")
+        return false;
+    }
+    const client = new TonClient4Adapter({
+        network: "testnet",
+        apiKey: process.env.API_KEY
+    })
     const blockchain = await Blockchain.create({
-        storage: new RemoteBlockchainStorage(wrapTonClient4ForRemote(new TonClient4({
-            endpoint: await getHttpV4Endpoint({
-                network: network ?? "testnet"
-            })
-        })))
+        storage: new RemoteBlockchainStorage(
+            wrapTonClient4ForRemote(
+                client
+            ))
     })
 
     const contractAddrString = process.env.CONTRACTADDRESS;
@@ -63,12 +71,16 @@ export async function simulateTransaction(pi_a: any, pi_b: any, pi_c: any, publi
 }
 
 export async function sendTransaction(pi_a: any, pi_b: any, pi_c: any, publicSignals: any): Promise<{ success: boolean, reason: string }> {
+    if (!process.env.API_KEY) {
+        console.log("Missing API key")
+        return { success: false, reason: "missing api key" };
+    }
     try {
         // Create Client
-        const client = new TonClient4({
-            endpoint: CURRENTAPI
-        });
-
+        const client = new TonClient4Adapter({
+            network: "testnet",
+            apiKey: process.env.API_KEY
+        })
         const contractAddrString = process.env.CONTRACTADDRESS;
 
         if (!contractAddrString) {
@@ -98,16 +110,19 @@ export async function sendTransaction(pi_a: any, pi_b: any, pi_c: any, publicSig
         let wallet = WalletContractV4.create({ workchain, publicKey: keyPair.publicKey });
 
         console.log("here")
-        console.log("wallet address",wallet.address)
-        
+        console.log("wallet address", wallet.address)
 
+        //@ts-ignore
         const walletContract = client.open(wallet);
-        console.log(walletContract.address)
-        console.log("Balance: ",await walletContract.getBalance())
 
-        // const walletSender = walletContract.sender(keyPair.secretKey);
+        console.log(walletContract.address)
+        //@ts-ignore
+        console.log("Balance: ", await walletContract.getBalance())
+        //@ts-ignore
+        const walletSender = walletContract.sender(keyPair.secretKey);
         // const seqno = await walletContract.getSeqno();
 
+        console.log(walletSender)
 
 
         // const depositWithdraw = DepositWithdraw.createFromAddress(Address.parse(contractAddrString));
